@@ -23,8 +23,8 @@ local function round(num)
     return math.floor(num + 0.5)
 end
 
-local function open_file(path)
-    local fd = vim.loop.fs_open(path, 'r', 0)
+local function open_file(path, mode)
+    local fd = vim.loop.fs_open(path, mode, 0)
     return fd
 end
 
@@ -40,14 +40,14 @@ end
 
 local function write_buffer_to_project(bufnr)
     local path = M.buffer_data[bufnr].path
-    local file = open_file(path)
+    local file = open_file(path, 'r')
     local content = read_file_to_end(file)
 
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
     local function line_iter(indent)
         local first = indent .. '<ItemGroup>\n'
-        local last = indent .. '</ItemGroup>\n'
+        local last = indent .. '</ItemGroup>'
 
         local items = ""
 
@@ -57,7 +57,12 @@ local function write_buffer_to_project(bufnr)
                 goto continue
             end
 
-            local next = indent .. indent .. '<Compile Include="' .. trimmed .. '" />\n'
+            local next =
+                indent ..
+                indent ..
+                '<Compile Include="' ..
+                trimmed ..
+                '" />\n'
             items = items .. next
 
             ::continue::
@@ -70,8 +75,11 @@ local function write_buffer_to_project(bufnr)
     local pattern = '([ \\t]+)<ItemGroup>.-</ItemGroup>'
     local edited = content:gsub(pattern, line_iter)
 
-    print(edited)
+    close_file(file)
 
+    file = open_file(path, 'w')
+    vim.loop.fs_write(file, edited)
+    print(path .. ' saved')
     close_file(file)
 end
 
@@ -87,6 +95,7 @@ local function setup_autocommands(bufnr)
         buffer = bufnr,
         callback = function(args)
             write_buffer_to_project(args.buf)
+            vim.bo[args.buf].modified = false
         end
     })
 end
@@ -103,15 +112,21 @@ local function create_fake_buffer(title, float)
     local winid = vim.api.nvim_get_current_win()
     local wininfo = vim.fn.getwininfo(winid)[1]
 
-    local width = round(wininfo.width * 0.8)
-    local height = round(wininfo.height * 0.8)
+    --local maxwidth = wininfo.width
+    --local maxheight = wininfo.height
+    local ui = vim.api.nvim_list_uis()[1]
+    local maxwidth = ui.width
+    local maxheight = ui.height
 
-    local x = round(wininfo.width - width) / 2.0
-    local y = round(wininfo.height - height) / 2.0
+    local width = round(maxwidth * 0.8)
+    local height = round(maxheight * 0.8)
+
+    local x = round(maxwidth - width) / 2.0
+    local y = round(maxheight - height) / 2.0
 
     if float then
         vim.api.nvim_open_win(bufnr, true, {
-            relative = "win",
+            relative = "editor",
             width = width,
             height = height,
             col = x,
@@ -137,6 +152,10 @@ local function get_project_file_path()
 
     local res = vim.lsp.buf_request_sync(bufnr, endpoint, args)
 
+    if not res then
+        return nil
+    end
+
     local index = 0
     while res[index] == nil do
         index = index + 1
@@ -151,7 +170,7 @@ local function get_project_file_path()
 end
 
 local function get_files_from_project(path)
-    local file = open_file(path)
+    local file = open_file(path, 'r')
     local content = read_file_to_end(file)
 
     local files = {}
@@ -181,7 +200,7 @@ local function set_keybinds(bufnr)
         local path_root = M.buffer_data[bufnr].root
         local path = join_path(path_root, line)
 
-        if M.buffer_data.float then
+        if M.buffer_data[bufnr].float then
             vim.api.nvim_win_close(0, false)
             vim.cmd.e(path)
         else
@@ -203,7 +222,8 @@ local function set_keybinds(bufnr)
             end)
 
             if #names == 1 then
-                vim.cmd.e(util.first(names))
+                vim.api.nvim_set_current_win(util.first(names).win)
+                vim.cmd.e(path)
             else
                 vim.ui.select(names, {
                     prompt = 'Choose buffer to replace: ',
@@ -247,6 +267,12 @@ function M.edit_file_order(opts)
     setmetatable(o, { __index = { float = true } })
 
     local project = get_project_file_path()
+    if not project then
+        print('No project found for current file')
+        return
+    end
+
+
     local parts = split_path(project)
     local project_name = parts[#parts]
 
