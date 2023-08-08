@@ -109,28 +109,23 @@ local function create_fake_buffer(title, float)
     vim.bo[bufnr].bufhidden = 'delete'
     vim.bo[bufnr].swapfile = false
 
-    local winid = vim.api.nvim_get_current_win()
-    local wininfo = vim.fn.getwininfo(winid)[1]
+    local size = vim.api.nvim_list_uis()[1]
+    local max_width = size.width
+    local max_height = size.height
 
-    --local maxwidth = wininfo.width
-    --local maxheight = wininfo.height
-    local ui = vim.api.nvim_list_uis()[1]
-    local maxwidth = ui.width
-    local maxheight = ui.height
+    local width = max_width * 0.8
+    local height = max_height * 0.8
 
-    local width = round(maxwidth * 0.8)
-    local height = round(maxheight * 0.8)
-
-    local x = round(maxwidth - width) / 2.0
-    local y = round(maxheight - height) / 2.0
+    local x = (max_width - width) / 2.0
+    local y = (max_height - height) / 2.0
 
     if float then
         vim.api.nvim_open_win(bufnr, true, {
             relative = "editor",
-            width = width,
-            height = height,
+            width = round(width),
+            height = round(height),
             col = x,
-            row = y,
+            row = y / 1.2,
             border = "rounded",
             title = title,
         })
