@@ -103,7 +103,7 @@ end
 local function create_fake_buffer(title, float)
     local bufnr = vim.api.nvim_create_buf(false, false)
 
-    vim.api.nvim_buf_set_name(bufnr, title)
+    vim.api.nvim_buf_set_name(bufnr, "Including: " .. title)
 
     vim.bo[bufnr].buftype = 'acwrite'
     vim.bo[bufnr].bufhidden = 'delete'
