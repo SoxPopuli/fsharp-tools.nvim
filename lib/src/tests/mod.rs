@@ -1,4 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{
+    error::Error,
+    path::{Path, PathBuf},
+    io::Cursor,
+};
+
+use xmltree::Element;
+
+type AnyResult<T> = Result<T, Box<dyn Error>>;
 
 fn get_files_dir() -> PathBuf {
     let root_dir = env!("CARGO_MANIFEST_DIR");
@@ -39,7 +47,7 @@ fn find_project_nested() {
 }
 
 #[test]
-fn xml_parse() {
+fn xml_parse() -> AnyResult<()> {
     let projects_dir = get_files_dir().join("projects");
 
     let with_version = projects_dir
@@ -51,23 +59,54 @@ fn xml_parse() {
         .display()
         .to_string();
 
-    let files = crate::get_files_from_project(&with_version).unwrap();
+    let files = crate::get_files_from_project(crate::open_file(&with_version)?)?;
 
-    assert_eq!(files, vec![
-        "One.fs".to_string(),
-        "Two.fs".to_string(),
-        "Three.fs".to_string(),
-        "Four.fs".to_string(),
-        "Five.fs".to_string(),
-    ]);
+    assert_eq!(
+        files,
+        vec![
+            "One.fs".to_string(),
+            "Two.fs".to_string(),
+            "Three.fs".to_string(),
+            "Four.fs".to_string(),
+            "Five.fs".to_string(),
+        ]
+    );
 
-    let files = crate::get_files_from_project(&without_version).unwrap();
+    let files = crate::get_files_from_project(crate::open_file(&without_version)?)?;
 
-    assert_eq!(files, vec![
-        "One.fs".to_string(),
-        "Two.fs".to_string(),
-        "Three.fs".to_string(),
-        "Four.fs".to_string(),
-        "Five.fs".to_string(),
-    ]);
+    assert_eq!(
+        files,
+        vec![
+            "One.fs".to_string(),
+            "Two.fs".to_string(),
+            "Three.fs".to_string(),
+            "Four.fs".to_string(),
+            "Five.fs".to_string(),
+        ]
+    );
+
+    Ok(())
+}
+
+#[test]
+fn set_files() -> AnyResult<()> {
+    let original = Cursor::new(include_str!("files/projects/set_files_original.fsproj"));
+
+    let expected = {
+        let src = include_str!("files/projects/set_files_expected.fsproj");
+        let cursor = Cursor::new(src);
+        Element::parse(cursor)
+    }.unwrap();
+
+    let files = [
+        "FileA",
+        "FileB",
+        "FileC",
+    ];
+
+    let result = crate::set_files_in_project(original, &files)?;
+
+    assert_eq!(result, expected);
+
+    Ok(())
 }
