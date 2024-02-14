@@ -8,6 +8,7 @@ mod error;
 mod tests;
 use crate::error::Error;
 
+use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
 use std::fs::File;
@@ -153,6 +154,15 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
     Ok(())
 }
 
+fn get_file_name(file_path: &str) -> Option<String> {
+    let path = Path::new(file_path);
+    //let file_name = path.file_name()?;
+
+    path.file_stem()
+        .and_then(|x| x.to_str())
+        .map(|x| x.to_owned())
+}
+
 use mlua::prelude::*;
 
 #[mlua::lua_module(name = "libfsharp_tools_rs")]
@@ -163,9 +173,7 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
         "find_fsproj",
         lua.create_function(|_, (file_path, max_depth): (String, i32)| {
             let err_msg = format!("fsproj not found for file: {}", file_path);
-            let result =
-                find_fsproj(&file_path, max_depth).ok_or(LuaError::RuntimeError(err_msg))?;
-
+            let result = find_fsproj(&file_path, max_depth).to_lua_error(err_msg)?;
             Ok(result)
         })?,
     )?;
@@ -173,9 +181,8 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
     table.set(
         "get_files_from_project",
         lua.create_function(|_, file_path: String| {
-            let file = open_file(&file_path).unwrap();
-            let result = get_files_from_project(file).unwrap();
-
+            let file = open_file(&file_path).to_lua_error()?;
+            let result = get_files_from_project(file).to_lua_error()?;
             Ok(result)
         })?,
     )?;
@@ -186,15 +193,20 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
             |_, (file_path, files, indent): (String, Vec<String>, Option<u8>)| {
                 let indent = indent.unwrap_or(2);
 
-                let file = open_file(&file_path).unwrap();
-                let project = set_files_in_project(file, &files).unwrap();
-
-                write_project_to_file(&file_path, &project, indent).unwrap();
+                open_file(&file_path)
+                    .and_then(|file| set_files_in_project(file, &files))
+                    .and_then(|project| write_project_to_file(&file_path, &project, indent))
+                    .to_lua_error()?;
 
                 Ok(())
             },
         )?,
     )?;
+
+    table.set("get_file_name", lua.create_function(|_, file_path: String| {
+        get_file_name(&file_path)
+            .to_lua_error(format!("Could not get file name for: {file_path}"))
+    })?)?;
 
     Ok(table)
 }

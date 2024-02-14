@@ -110,3 +110,13 @@ fn set_files() -> AnyResult<()> {
 
     Ok(())
 }
+
+#[test]
+fn get_file_name() {
+    let path = "files/projects/set_files_expected.fsproj";
+
+    assert_eq!(
+        crate::get_filename(&path),
+        Some("set_files_expected".to_owned())
+    );
+}
