@@ -1,6 +1,6 @@
 local M = {}
 
-local util = require('fs-tools.utils')
+local util = require('fsharp-tools.utils')
 
 ---@class Core
 ---@field find_fsproj fun(file_path: string, max_depth: integer): string
