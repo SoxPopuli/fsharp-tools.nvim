@@ -226,7 +226,7 @@ function M.edit_file_order(is_floating)
 end
 
 ---@param opts Settings
-function M.config(opts)
+function M.setup(opts)
   settings = vim.tbl_extend('force', settings, opts)
 end
 
