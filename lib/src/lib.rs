@@ -12,7 +12,7 @@ use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 fn open_file(file_path: &str) -> Result<BufReader<File>, Error> {

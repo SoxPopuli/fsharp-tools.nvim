@@ -1,7 +1,7 @@
 use std::{
     error::Error,
     path::{Path, PathBuf},
-    io::Cursor, fmt::Write,
+    io::Cursor,
 };
 
 use xmltree::Element;
