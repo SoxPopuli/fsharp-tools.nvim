@@ -1,17 +1,22 @@
 # fsharp-tools.nvim
 Assorted tools for working with F#
 
-Requires `fsautocomplete` or `ionide` LSPs to be running
-
-### Functions
-Currently contains one function
 ```lua
-    require('fs-tools').edit_file_order({ float = true })
-    -- or
-    require('fs-tools').edit_file_order({ float = false })
+require('fsharp-tools')
 ```
 
-Calling `edit_file_order` creates a temporary buffer that is a representation of the currently opened fs file.
-Editing the buffer and writing to it will be reflected in the relevant .fsproj file.
+### Example Lazy Config
+```lua
+{ 
+    'SoxPopuli/fsharp-tools.nvim',
+    ft = { 'fsharp', 'xml' },
+    build = "./build.sh -r",
+}
 
-Also pressing enter on an item will navigate to the file.
+```
+
+### Functions
+
+| function | parameters | return | description |
+| --- | --- | --- | --- |
+| `edit_file_order` | `floating: bool` |  | Opens a temporary buffer that lists the files included in the fsproj file in order.<br>Writing to the buffer will change the project file to match the content of the buffer.<br>Pressing enter on a line will take you to the relevant file|
