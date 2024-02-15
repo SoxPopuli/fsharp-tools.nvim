@@ -170,11 +170,6 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
 
     let output = choose_from_diff(&original, &data_to_write).collect::<Vec<_>>();
 
-    let mut log = File::create("/tmp/fs-tools.log").unwrap();
-    writeln!(log, "original: {:#?}", &original).unwrap();
-    writeln!(log, "to_write: {:#?}", &data_to_write).unwrap();
-    writeln!(log, "output: {:#?}", &output).unwrap();
-
     for i in 0..output.len() {
         let line = output[i].as_bytes();
 
