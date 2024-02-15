@@ -3,14 +3,14 @@ use std::fmt::Display;
 #[derive(Debug)]
 pub(crate) enum Error {
     FileError(String),
-    IOError,
+    IOError(std::io::Error),
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::FileError(msg) => write!(f, "FileError: {msg}"),
-            Self::IOError => write!(f, "IOError"),
+            Self::IOError(error) => write!(f, "IOError: {}", error),
         }
     }
 }

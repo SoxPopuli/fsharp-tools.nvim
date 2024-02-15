@@ -12,7 +12,7 @@ use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, BufWriter, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 fn open_file(file_path: &str) -> Result<BufReader<File>, Error> {
@@ -110,7 +110,7 @@ fn set_files_in_project<T: AsRef<str>>(
             let mut element = Element::new("Compile");
             element
                 .attributes
-                .insert("Include".into(), format!("{}.fs", item.as_ref()));
+                .insert("Include".into(), item.as_ref().to_string());
             group.children.push(XMLNode::Element(element));
         }
 
@@ -136,22 +136,86 @@ fn set_files_in_project<T: AsRef<str>>(
 }
 
 fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Result<(), Error> {
-    let file = std::fs::OpenOptions::new()
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
         .write(true)
-        .truncate(true)
         .open(file_path)
         .map_err(|e| Error::FileError(e.to_string()))?;
 
-    let indent_string: String = (0..indent).map(|_| ' ').collect();
-    let config = EmitterConfig::new()
-        .perform_indent(true)
-        .indent_string(indent_string);
+    let original = {
+        let mut s = String::new();
+        file.read_to_string(&mut s).map_err(Error::IOError)?;
+        s
+    };
+    file.set_len(0).map_err(Error::IOError)?;
+    file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
 
-    element
-        .write_with_config(file, config)
-        .map_err(|_| Error::IOError)?;
+    let data_to_write = {
+        let mut buffer = BufWriter::new(Vec::<u8>::new());
+
+        let indent_string: String = (0..indent).map(|_| ' ').collect();
+        let config = EmitterConfig::new()
+            .perform_indent(true)
+            .indent_string(indent_string);
+
+        element
+            .write_with_config(&mut buffer, config)
+            .map_err(|e| Error::FileError(e.to_string()))?;
+
+        let buffer = buffer
+            .into_inner()
+            .map_err(|e| Error::FileError(e.to_string()))?;
+        String::from_utf8(buffer).map_err(|e| Error::FileError(e.to_string()))?
+    };
+
+    let output = choose_from_diff(&original, &data_to_write).collect::<Vec<_>>();
+
+    let mut log = File::create("/tmp/fs-tools.log").unwrap();
+    writeln!(log, "original: {:#?}", &original).unwrap();
+    writeln!(log, "to_write: {:#?}", &data_to_write).unwrap();
+    writeln!(log, "output: {:#?}", &output).unwrap();
+
+    for i in 0..output.len() {
+        let line = output[i].as_bytes();
+
+        file.write(line).map_err(Error::IOError)?;
+
+        if i < output.len() - 1 {
+            file.write(b"\n").map_err(Error::IOError)?;
+        }
+    }
 
     Ok(())
+}
+
+fn choose_from_diff<'a>(
+    original: &'a str,
+    data_to_write: &'a str,
+) -> impl Iterator<Item = &'a str> {
+    let diff = diff::lines(original, data_to_write);
+
+    // If line contains "Compile" prefer new, else prefer original
+    let output = diff.into_iter().filter_map(|x| {
+        use diff::Result;
+        match x {
+            Result::Left(l) => {
+                if l.contains("Compile") {
+                    None
+                } else {
+                    Some(l)
+                }
+            }
+            Result::Both(l, _) => Some(l),
+            Result::Right(r) => {
+                if r.contains("Compile") {
+                    Some(r)
+                } else {
+                    None
+                }
+            }
+        }
+    });
+    output
 }
 
 fn get_file_name(file_path: &str) -> Option<String> {
@@ -165,7 +229,7 @@ fn get_file_name(file_path: &str) -> Option<String> {
 
 use mlua::prelude::*;
 
-#[mlua::lua_module(name = "libfsharp_tools_rs")]
+#[mlua::lua_module(name = "fsharp_tools_rs")]
 fn module(lua: &Lua) -> LuaResult<LuaTable> {
     let table = lua.create_table()?;
 
@@ -203,10 +267,13 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
         )?,
     )?;
 
-    table.set("get_file_name", lua.create_function(|_, file_path: String| {
-        get_file_name(&file_path)
-            .to_lua_error(format!("Could not get file name for: {file_path}"))
-    })?)?;
+    table.set(
+        "get_file_name",
+        lua.create_function(|_, file_path: String| {
+            get_file_name(&file_path)
+                .to_lua_error(format!("Could not get file name for: {file_path}"))
+        })?,
+    )?;
 
     Ok(table)
 }

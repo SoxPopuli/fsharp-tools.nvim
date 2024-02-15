@@ -7,7 +7,7 @@ local util = require('fsharp-tools.utils')
 ---@field get_files_from_project fun(file_path: string): string[]
 ---@field write_files_to_project fun(file_path: string, files: string[], indent: integer?)
 ---@field get_file_name fun(file_name: string): string
-local core = require('libfsharp_tools_rs')
+local core = require('fsharp_tools_rs')
 
 ---@class BufferData
 ---@field project_name string
@@ -149,6 +149,8 @@ local function set_keybinds(bufnr, data)
     local line = vim.api.nvim_get_current_line()
     local path_root = data.project_root
     local path = join_path(path_root, line)
+
+    path = path:gsub('[\\/]', sep) -- escape backslashes
 
     if data.float then
       vim.api.nvim_win_close(0, false)

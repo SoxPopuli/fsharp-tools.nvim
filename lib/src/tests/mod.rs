@@ -1,7 +1,7 @@
 use std::{
     error::Error,
     path::{Path, PathBuf},
-    io::Cursor,
+    io::Cursor, fmt::Write,
 };
 
 use xmltree::Element;
@@ -99,9 +99,9 @@ fn set_files() -> AnyResult<()> {
     }.unwrap();
 
     let files = [
-        "FileA",
-        "FileB",
-        "FileC",
+        "FileA.fs",
+        "FileB.fs",
+        "FileC.fs",
     ];
 
     let result = crate::set_files_in_project(original, &files)?;
@@ -112,11 +112,33 @@ fn set_files() -> AnyResult<()> {
 }
 
 #[test]
+fn diff_test() {
+    let original = 
+        include_str!("files/projects/diff_original.fsproj");
+
+    let to_write = 
+        include_str!("files/projects/diff_to_write.fsproj");
+
+    let expected = 
+        include_str!("files/projects/diff_expected.fsproj");
+
+    let diff = 
+        crate::choose_from_diff(original, to_write);
+
+    let result = diff
+        .map(|x| x.to_string())
+        .reduce(|acc, x| format!("{acc}\n{x}"))
+        .unwrap();
+
+    assert_eq!(result, expected);
+}
+
+#[test]
 fn get_file_name() {
     let path = "files/projects/set_files_expected.fsproj";
 
     assert_eq!(
-        crate::get_filename(&path),
+        crate::get_file_name(&path),
         Some("set_files_expected".to_owned())
     );
 }
