@@ -8,10 +8,10 @@ mod error;
 mod tests;
 use crate::error::Error;
 
+use cfg_if::cfg_if;
 use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
-use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
@@ -169,8 +169,10 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
         String::from_utf8(buffer).map_err(|e| Error::FileError(e.to_string()))?
     };
 
-    if cfg!(debug_assertions) {
-        write_log("to_write", &data_to_write)?;
+    cfg_if! {
+        if #[cfg(debug_assertions)] {
+            write_log("to_write", &data_to_write)?;
+        }
     }
 
     file.write_all(data_to_write.as_bytes())
@@ -180,7 +182,8 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
 }
 
 #[cfg(debug_assertions)]
-fn write_log<T: Display>(name: &str, input: T) -> Result<(), Error> {
+fn write_log<T: std::fmt::Display>(name: &str, input: T) -> Result<(), Error> {
+
     let mut file = File::options()
         .create(true)
         .write(true)
@@ -192,6 +195,8 @@ fn write_log<T: Display>(name: &str, input: T) -> Result<(), Error> {
 
     Ok(())
 }
+
+
 
 fn get_file_name(file_path: &str) -> Option<String> {
     let path = Path::new(file_path);
