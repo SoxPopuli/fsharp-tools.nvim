@@ -10,20 +10,19 @@ mod error;
 use crate::error::Error;
 
 mod file;
-use file::{ SharedFileLock, ExclusiveFileLock };
+use file::{ExclusiveFileLock, SharedFileLock};
 
 use cfg_if::cfg_if;
 use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 fn open_file_read(file_path: &str) -> Result<SharedFileLock, Error> {
-    let file = 
-        File::open(file_path)
-            .map_err(|_| Error::FileError(format!("Failed to open file: {file_path}")))?;
+    let file = File::open(file_path)
+        .map_err(|_| Error::FileError(format!("Failed to open file: {file_path}")))?;
 
     SharedFileLock::new(file)
 }
@@ -39,7 +38,7 @@ fn open_file_write(file_path: &str) -> Result<ExclusiveFileLock, Error> {
 }
 
 fn parse_root(project: impl Read) -> Result<Element, Error> {
-    Element::parse(project).map_err(|_| Error::FileError("Failed to parse project".into()))
+    Element::parse(project).map_err(|e| Error::FileError(format!("Failed to parse project: {}", e.to_string())))
 }
 
 fn get_item_groups(element: &Element) -> impl Iterator<Item = &Element> {
@@ -131,7 +130,17 @@ fn set_files_in_project<T: AsRef<str>>(
             true
         });
 
-        for item in file_names.iter().rev() {
+        let file_names =
+            file_names.iter()
+            .rev()
+            .filter(|s| {
+                s
+                .as_ref()
+                .trim_matches(|c| matches!(c, '\n' | '\r' | '\t' | ' '))
+                .len() > 0
+            });
+
+        for item in file_names {
             let mut element = Element::new("Compile");
             element
                 .attributes
@@ -160,10 +169,7 @@ fn set_files_in_project<T: AsRef<str>>(
     Ok(root)
 }
 
-
-fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Result<(), Error> {
-    let mut file = open_file_write(file_path)?;
-
+fn write_project(buf: &mut impl Write, element: &Element, indent: u8) -> Result<(), Error> {
     let data_to_write = {
         let mut buffer = BufWriter::new(Vec::<u8>::new());
 
@@ -188,15 +194,19 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
         }
     }
 
-    file.write_all(data_to_write.as_bytes())
+    buf.write_all(data_to_write.as_bytes())
         .map_err(Error::IOError)?;
 
     Ok(())
 }
 
+fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Result<(), Error> {
+    let mut file = open_file_write(file_path)?;
+    write_project(&mut file, element, indent)
+}
+
 #[cfg(debug_assertions)]
 fn write_log<T: std::fmt::Display>(name: &str, input: T) -> Result<(), Error> {
-
     let mut file = File::options()
         .create(true)
         .write(true)
@@ -208,8 +218,6 @@ fn write_log<T: std::fmt::Display>(name: &str, input: T) -> Result<(), Error> {
 
     Ok(())
 }
-
-
 
 fn get_file_name(file_path: &str) -> Option<String> {
     let path = Path::new(file_path);
@@ -239,7 +247,6 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
         "get_files_from_project",
         lua.create_function(|_, file_path: String| {
             let file = open_file_read(&file_path).to_lua_error()?;
-
 
             let result = get_files_from_project(file).to_lua_error()?;
             Ok(result)

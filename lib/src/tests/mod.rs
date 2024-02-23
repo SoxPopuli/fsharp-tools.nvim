@@ -142,3 +142,46 @@ fn get_file_name() {
         Some("set_files_expected".to_owned())
     );
 }
+
+#[test]
+fn ignore_empty_lines() {
+    let input = r#"
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <OutputType>Exe</OutputType>
+            <TargetFramework>net6.0</TargetFramework>
+            <GenerateProgramFile>false</GenerateProgramFile>
+          </PropertyGroup>
+          <ItemGroup>
+            <Compile Include="One.fs" />
+            <Compile Include="Two.fs" />
+            <Compile Include="Three.fs" />
+            <Content Include="paket.references" />
+          </ItemGroup>
+          <ItemGroup>
+            <ProjectReference Include="../dependency.fsproj" />
+          </ItemGroup>
+          <Import Project="..\..\.paket\Paket.Restore.targets" />
+        </Project>
+    "#.as_bytes();
+
+    let tree =
+        crate::set_files_in_project(input, &[
+            "a",
+            "b",
+            "",
+            " ",
+            "                ",
+            "c",
+        ]).unwrap();
+
+    let files = {
+        let mut buf = Cursor::new(vec![]);
+        crate::write_project(&mut buf, &tree, 2).unwrap();
+        buf.set_position(0);
+
+        crate::get_files_from_project(buf).unwrap()
+    };
+
+    assert_eq!(files, vec![ "a", "b", "c" ]);
+}

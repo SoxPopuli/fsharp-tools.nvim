@@ -64,6 +64,7 @@ end
 ---@param data BufferData
 local function write_buffer_to_project(bufnr, data)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  print(vim.inspect(lines))
   core.write_files_to_project(data.project_path, lines, settings.indent)
 end
 
