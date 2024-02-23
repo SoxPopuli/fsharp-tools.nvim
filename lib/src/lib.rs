@@ -3,10 +3,14 @@
 //  2. extract data from fsproj
 //  3. reassemble fsproj file with new files
 
-mod error;
 #[cfg(test)]
 mod tests;
+
+mod error;
 use crate::error::Error;
+
+mod file;
+use file::{ SharedFileLock, ExclusiveFileLock };
 
 use cfg_if::cfg_if;
 use error::{OptionToLuaError, ResultToLuaError};
@@ -16,10 +20,21 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
-fn open_file(file_path: &str) -> Result<BufReader<File>, Error> {
-    File::open(file_path)
-        .map(BufReader::new)
-        .map_err(|_| Error::FileError(format!("Failed to open file: {file_path}")))
+fn open_file_read(file_path: &str) -> Result<SharedFileLock, Error> {
+    let file = 
+        File::open(file_path)
+            .map_err(|_| Error::FileError(format!("Failed to open file: {file_path}")))?;
+
+    SharedFileLock::new(file)
+}
+
+fn open_file_write(file_path: &str) -> Result<ExclusiveFileLock, Error> {
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(file_path)
+        .map_err(|e| Error::FileError(e.to_string()))
+        .and_then(ExclusiveFileLock::new)
 }
 
 fn parse_root(project: impl Read) -> Result<Element, Error> {
@@ -144,12 +159,9 @@ fn set_files_in_project<T: AsRef<str>>(
     Ok(root)
 }
 
+
 fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Result<(), Error> {
-    let mut file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(file_path)
-        .map_err(|e| Error::FileError(e.to_string()))?;
+    let mut file = open_file_write(file_path)?;
 
     let data_to_write = {
         let mut buffer = BufWriter::new(Vec::<u8>::new());
@@ -225,7 +237,9 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
     table.set(
         "get_files_from_project",
         lua.create_function(|_, file_path: String| {
-            let file = open_file(&file_path).to_lua_error()?;
+            let file = open_file_read(&file_path).to_lua_error()?;
+
+
             let result = get_files_from_project(file).to_lua_error()?;
             Ok(result)
         })?,
@@ -237,7 +251,7 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
             |_, (file_path, files, indent): (String, Vec<String>, Option<u8>)| {
                 let indent = indent.unwrap_or(2);
 
-                open_file(&file_path)
+                open_file_read(&file_path)
                     .and_then(|file| set_files_in_project(file, &files))
                     .and_then(|project| write_project_to_file(&file_path, &project, indent))
                     .to_lua_error()?;

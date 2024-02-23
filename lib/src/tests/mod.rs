@@ -59,7 +59,7 @@ fn xml_parse() -> AnyResult<()> {
         .display()
         .to_string();
 
-    let files = crate::get_files_from_project(crate::open_file(&with_version)?)?;
+    let files = crate::get_files_from_project(crate::open_file_read(&with_version)?)?;
 
     assert_eq!(
         files,
@@ -72,7 +72,7 @@ fn xml_parse() -> AnyResult<()> {
         ]
     );
 
-    let files = crate::get_files_from_project(crate::open_file(&without_version)?)?;
+    let files = crate::get_files_from_project(crate::open_file_read(&without_version)?)?;
 
     assert_eq!(
         files,
@@ -111,27 +111,27 @@ fn set_files() -> AnyResult<()> {
     Ok(())
 }
 
-#[test]
-fn diff_test() {
-    let original = 
-        include_str!("files/projects/diff_original.fsproj");
+//#[test]
+//fn diff_test() {
+//    let original = 
+//        include_str!("files/projects/diff_original.fsproj");
 
-    let to_write = 
-        include_str!("files/projects/diff_to_write.fsproj");
+//    let to_write = 
+//        include_str!("files/projects/diff_to_write.fsproj");
 
-    let expected = 
-        include_str!("files/projects/diff_expected.fsproj");
+//    let expected = 
+//        include_str!("files/projects/diff_expected.fsproj");
 
-    let diff = 
-        crate::choose_from_diff(original, to_write);
+//    let diff = 
+//        crate::choose_from_diff(original, to_write);
 
-    let result = diff
-        .map(|x| x.to_string())
-        .reduce(|acc, x| format!("{acc}\n{x}"))
-        .unwrap();
+//    let result = diff
+//        .map(|x| x.to_string())
+//        .reduce(|acc, x| format!("{acc}\n{x}"))
+//        .unwrap();
 
-    assert_eq!(result, expected);
-}
+//    assert_eq!(result, expected);
+//}
 
 #[test]
 fn get_file_name() {

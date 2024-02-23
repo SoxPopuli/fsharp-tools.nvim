@@ -16,6 +16,7 @@ lto = true
 [dependencies]
 cfg-if = "1.0.0"
 diff = "0.1.13"
+fs2 = "0.4.3"
 mlua = { version = "0.9.5", features = ["luajit", "module"] }
 quick-xml = "0.31.0"
 xmltree = "0.10.3"

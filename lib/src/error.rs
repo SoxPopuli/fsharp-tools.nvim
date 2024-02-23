@@ -3,6 +3,7 @@ use std::fmt::Display;
 #[derive(Debug)]
 pub(crate) enum Error {
     FileError(String),
+    LockError(String),
     IOError(std::io::Error),
 }
 
@@ -10,6 +11,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::FileError(msg) => write!(f, "FileError: {msg}"),
+            Self::LockError(msg) => write!(f, "LockError: {msg}"),
             Self::IOError(error) => write!(f, "IOError: {}", error),
         }
     }
