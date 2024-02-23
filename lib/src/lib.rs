@@ -32,6 +32,7 @@ fn open_file_write(file_path: &str) -> Result<ExclusiveFileLock, Error> {
     std::fs::OpenOptions::new()
         .read(true)
         .write(true)
+        .truncate(true)
         .open(file_path)
         .map_err(|e| Error::FileError(e.to_string()))
         .and_then(ExclusiveFileLock::new)
