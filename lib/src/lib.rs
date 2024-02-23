@@ -136,7 +136,7 @@ fn set_files_in_project<T: AsRef<str>>(
             .filter(|s| {
                 s
                 .as_ref()
-                .trim_matches(|c| matches!(c, '\n' | '\r' | '\t' | ' '))
+                .trim()
                 .len() > 0
             });
 
