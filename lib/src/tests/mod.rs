@@ -64,11 +64,11 @@ fn xml_parse() -> AnyResult<()> {
     assert_eq!(
         files,
         vec![
-            "One.fs".to_string(),
-            "Two.fs".to_string(),
-            "Three.fs".to_string(),
-            "Four.fs".to_string(),
-            "Five.fs".to_string(),
+            "One".to_string(),
+            "Two".to_string(),
+            "Three".to_string(),
+            "Four".to_string(),
+            "Five".to_string(),
         ]
     );
 
@@ -77,11 +77,11 @@ fn xml_parse() -> AnyResult<()> {
     assert_eq!(
         files,
         vec![
-            "One.fs".to_string(),
-            "Two.fs".to_string(),
-            "Three.fs".to_string(),
-            "Four.fs".to_string(),
-            "Five.fs".to_string(),
+            "One".to_string(),
+            "Two".to_string(),
+            "Three".to_string(),
+            "Four".to_string(),
+            "Five".to_string(),
         ]
     );
 
@@ -99,9 +99,9 @@ fn set_files() -> AnyResult<()> {
     }.unwrap();
 
     let files = [
-        "FileA.fs",
-        "FileB.fs",
-        "FileC.fs",
+        "FileA",
+        "FileB",
+        "FileC",
     ];
 
     let result = crate::set_files_in_project(original, &files)?;

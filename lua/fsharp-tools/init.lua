@@ -149,6 +149,7 @@ local function set_keybinds(bufnr, data)
     local line = vim.api.nvim_get_current_line()
     local path_root = data.project_root
     local path = join_path(path_root, line)
+    path = path .. ".fs" -- re-add extension
 
     path = path:gsub('[\\/]', sep) -- escape backslashes
 

@@ -11,8 +11,9 @@ use crate::error::Error;
 use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
+use std::fmt::Display;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 fn open_file(file_path: &str) -> Result<BufReader<File>, Error> {
@@ -48,7 +49,15 @@ fn get_files_from_project(project: impl Read) -> Result<Vec<String>, Error> {
             .filter(|elem| elem.name == "Compile")
     });
 
-    let paths: Vec<_> = files.map(|e| e.attributes["Include"].clone()).collect();
+    let mut paths: Vec<_> = files.map(|e| e.attributes["Include"].clone()).collect();
+
+    for p in paths.iter_mut() {
+        let (name, _) = p
+            .split_once('.')
+            .ok_or(Error::FileError(format!("missing extension for {}", p)))?;
+
+        *p = name.to_owned();
+    }
 
     Ok(paths)
 }
@@ -110,7 +119,7 @@ fn set_files_in_project<T: AsRef<str>>(
             let mut element = Element::new("Compile");
             element
                 .attributes
-                .insert("Include".into(), item.as_ref().to_string());
+                .insert("Include".into(), format!("{}.fs", item.as_ref()));
             group.children.push(XMLNode::Element(element));
         }
 
@@ -142,14 +151,6 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
         .open(file_path)
         .map_err(|e| Error::FileError(e.to_string()))?;
 
-    let original = {
-        let mut s = String::new();
-        file.read_to_string(&mut s).map_err(Error::IOError)?;
-        s
-    };
-    file.set_len(0).map_err(Error::IOError)?;
-    file.seek(SeekFrom::Start(0)).map_err(Error::IOError)?;
-
     let data_to_write = {
         let mut buffer = BufWriter::new(Vec::<u8>::new());
 
@@ -168,49 +169,28 @@ fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Resu
         String::from_utf8(buffer).map_err(|e| Error::FileError(e.to_string()))?
     };
 
-    let output = choose_from_diff(&original, &data_to_write).collect::<Vec<_>>();
-
-    for i in 0..output.len() {
-        let line = output[i].as_bytes();
-
-        file.write(line).map_err(Error::IOError)?;
-
-        if i < output.len() - 1 {
-            file.write(b"\n").map_err(Error::IOError)?;
-        }
+    if cfg!(debug_assertions) {
+        write_log("to_write", &data_to_write)?;
     }
+
+    file.write_all(data_to_write.as_bytes())
+        .map_err(Error::IOError)?;
 
     Ok(())
 }
 
-fn choose_from_diff<'a>(
-    original: &'a str,
-    data_to_write: &'a str,
-) -> impl Iterator<Item = &'a str> {
-    let diff = diff::lines(original, data_to_write);
+#[cfg(debug_assertions)]
+fn write_log<T: Display>(name: &str, input: T) -> Result<(), Error> {
+    let mut file = File::options()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open("/tmp/fs-tools.log")
+        .map_err(Error::IOError)?;
 
-    // If line contains "Compile" prefer new, else prefer original
-    let output = diff.into_iter().filter_map(|x| {
-        use diff::Result;
-        match x {
-            Result::Left(l) => {
-                if l.contains("Compile") {
-                    None
-                } else {
-                    Some(l)
-                }
-            }
-            Result::Both(l, _) => Some(l),
-            Result::Right(r) => {
-                if r.contains("Compile") {
-                    Some(r)
-                } else {
-                    None
-                }
-            }
-        }
-    });
-    output
+    writeln!(file, "{}: {}", name, input).map_err(Error::IOError)?;
+
+    Ok(())
 }
 
 fn get_file_name(file_path: &str) -> Option<String> {
