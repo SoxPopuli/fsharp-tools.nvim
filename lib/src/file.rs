@@ -1,6 +1,9 @@
-use std::{fs::File, io::{Read, Seek, Write, BufReader}};
-use fs2::FileExt;
 use crate::error::Error;
+use fs2::FileExt;
+use std::{
+    fs::File,
+    io::{BufReader, Read, Seek, Write},
+};
 
 pub(crate) struct SharedFileLock(BufReader<File>);
 impl SharedFileLock {

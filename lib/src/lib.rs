@@ -38,7 +38,8 @@ fn open_file_write(file_path: &str) -> Result<ExclusiveFileLock, Error> {
 }
 
 fn parse_root(project: impl Read) -> Result<Element, Error> {
-    Element::parse(project).map_err(|e| Error::FileError(format!("Failed to parse project: {}", e.to_string())))
+    Element::parse(project)
+        .map_err(|e| Error::FileError(format!("Failed to parse project: {}", e.to_string())))
 }
 
 fn get_item_groups(element: &Element) -> impl Iterator<Item = &Element> {
@@ -81,9 +82,11 @@ fn get_files_from_project(project: impl Read) -> Result<Vec<String>, Error> {
 /// finds a fsproj file or hits max depth
 fn find_fsproj(file_path: &str, max_depth: i32) -> Option<String> {
     let path = {
-        let tmp = Path::new(file_path);
+        let tmp = Path::new(file_path)
+            .canonicalize()
+            .expect(&format!("failed to canonicalize path {file_path}"));
         if tmp.is_file() {
-            tmp.parent()?
+            tmp.parent()?.to_path_buf()
         } else {
             tmp
         }
@@ -102,13 +105,13 @@ fn find_fsproj(file_path: &str, max_depth: i32) -> Option<String> {
         })
     }
 
-    fn find_until(path: &Path, depth: i32, max_depth: i32) -> Option<PathBuf> {
+    fn find_until(path: impl AsRef<Path>, depth: i32, max_depth: i32) -> Option<PathBuf> {
         if depth >= max_depth {
             None
         } else {
-            match find_from_path(path) {
+            match find_from_path(path.as_ref()) {
                 Some(path) => Some(path),
-                None => find_until(path.parent()?, depth + 1, max_depth),
+                None => find_until(path.as_ref().parent()?, depth + 1, max_depth),
             }
         }
     }
@@ -130,15 +133,10 @@ fn set_files_in_project<T: AsRef<str>>(
             true
         });
 
-        let file_names =
-            file_names.iter()
+        let file_names = file_names
+            .iter()
             .rev()
-            .filter(|s| {
-                s
-                .as_ref()
-                .trim()
-                .len() > 0
-            });
+            .filter(|s| s.as_ref().trim().len() > 0);
 
         for item in file_names {
             let mut element = Element::new("Compile");

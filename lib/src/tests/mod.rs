@@ -1,7 +1,7 @@
 use std::{
     error::Error,
-    path::{Path, PathBuf},
     io::Cursor,
+    path::{Path, PathBuf},
 };
 
 use xmltree::Element;
@@ -96,13 +96,10 @@ fn set_files() -> AnyResult<()> {
         let src = include_str!("files/projects/set_files_expected.fsproj");
         let cursor = Cursor::new(src);
         Element::parse(cursor)
-    }.unwrap();
+    }
+    .unwrap();
 
-    let files = [
-        "FileA",
-        "FileB",
-        "FileC",
-    ];
+    let files = ["FileA", "FileB", "FileC"];
 
     let result = crate::set_files_in_project(original, &files)?;
 
@@ -113,16 +110,16 @@ fn set_files() -> AnyResult<()> {
 
 //#[test]
 //fn diff_test() {
-//    let original = 
+//    let original =
 //        include_str!("files/projects/diff_original.fsproj");
 
-//    let to_write = 
+//    let to_write =
 //        include_str!("files/projects/diff_to_write.fsproj");
 
-//    let expected = 
+//    let expected =
 //        include_str!("files/projects/diff_expected.fsproj");
 
-//    let diff = 
+//    let diff =
 //        crate::choose_from_diff(original, to_write);
 
 //    let result = diff
@@ -163,17 +160,11 @@ fn ignore_empty_lines() {
           </ItemGroup>
           <Import Project="..\..\.paket\Paket.Restore.targets" />
         </Project>
-    "#.as_bytes();
+    "#
+    .as_bytes();
 
     let tree =
-        crate::set_files_in_project(input, &[
-            "a",
-            "b",
-            "",
-            " ",
-            "                ",
-            "c",
-        ]).unwrap();
+        crate::set_files_in_project(input, &["a", "b", "", " ", "                ", "c"]).unwrap();
 
     let files = {
         let mut buf = Cursor::new(vec![]);
@@ -183,5 +174,5 @@ fn ignore_empty_lines() {
         crate::get_files_from_project(buf).unwrap()
     };
 
-    assert_eq!(files, vec![ "a", "b", "c" ]);
+    assert_eq!(files, vec!["a", "b", "c"]);
 }

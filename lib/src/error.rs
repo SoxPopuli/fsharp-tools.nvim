@@ -33,7 +33,7 @@ impl<T> ResultToLuaError for Result<T, Error> {
     type Item = T;
 
     fn to_lua_error(self) -> Result<Self::Item, mlua::Error> {
-        self.map_err( mlua::Error::external )
+        self.map_err(mlua::Error::external)
     }
 }
 
