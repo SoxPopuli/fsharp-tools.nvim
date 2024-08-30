@@ -204,10 +204,25 @@ local function setup_buffer(bufnr, files, data)
   set_keybinds(bufnr, data)
 end
 
+---if x is nil, return default else return x
+---@generic T
+---@param x T | nil
+---@param default T
+---@return T
+local function or_default(x, default)
+  if x == nil then
+    return default
+  else
+    return x
+  end
+end
+
 -- Create Fake buffer for moving / editing / displaying file order in .fsproj files
 -- Saving should cause a write to the relevant fsproj
----@param is_floating boolean
+---@param is_floating boolean | nil
 function M.edit_file_order(is_floating)
+  local floating = or_default(is_floating, false)
+
   local file = vim.fn.bufname() --[[@type string]]
   local project = core.find_fsproj(file, settings.max_depth)
 
