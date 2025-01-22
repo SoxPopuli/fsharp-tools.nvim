@@ -17,7 +17,7 @@ use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
 use std::fs::File;
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Cursor, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 fn open_file_read(file_path: &str) -> Result<SharedFileLock, Error> {
@@ -119,6 +119,60 @@ fn find_fsproj(file_path: &str, max_depth: i32) -> Option<String> {
     find_until(path, 0, max_depth).and_then(|path| Some(path.to_str()?.to_owned()))
 }
 
+fn fix_start_and_end<Output, Original>(
+    mut output_file: Output,
+    mut original_file: Original,
+) -> Result<String, Error>
+where
+    Output: Read + Seek,
+    Original: Read + Seek,
+{
+    fn seek_to_start(mut file: impl Read + Seek) -> Result<(), Error> {
+        file.seek(SeekFrom::Start(0))
+            .map_err(|e| Error::FileError(e.to_string()))
+            .map(|_| ())
+    }
+
+    fn read_lines(file: impl Read + Seek) -> Result<Vec<String>, Error> {
+        BufReader::new(file)
+            .lines()
+            .map(|line| line.map_err(Error::file_error))
+            .collect::<Result<_, _>>()
+    }
+
+    seek_to_start(&mut output_file)?;
+    seek_to_start(&mut original_file)?;
+
+    let original = {
+        let mut buf = String::new();
+        BufReader::new(original_file)
+            .read_to_string(&mut buf)
+            .map_err(Error::file_error)?;
+        buf
+    };
+    let original_lines = original.lines().collect::<Vec<_>>();
+    let mut output = read_lines(&mut output_file)?;
+
+    if original.is_empty() || output.is_empty() {
+        return Ok("".to_string());
+    }
+
+    output[0] = original_lines[0].to_string();
+
+    let mut joined = output.join("\n");
+    if original.ends_with('\n') {
+        if !joined.ends_with('\n') {
+            joined.push('\n');
+        }
+    } else {
+        if joined.ends_with('\n') {
+            joined.remove(joined.len() - 1);
+        }
+    }
+
+    Ok(joined)
+}
+
 fn set_files_in_project<T: AsRef<str>>(
     project: impl Read,
     file_names: &[T],
@@ -198,9 +252,12 @@ fn write_project(buf: &mut impl Write, element: &Element, indent: u8) -> Result<
     Ok(())
 }
 
-fn write_project_to_file(file_path: &str, element: &Element, indent: u8) -> Result<(), Error> {
-    let mut file = open_file_write(file_path)?;
-    write_project(&mut file, element, indent)
+fn write_project_to_string(element: &Element, indent: u8) -> Result<String, Error> {
+    // let mut file = open_file_write(file_path)?;
+    let mut buf = BufWriter::new(Vec::new());
+    write_project(&mut buf, element, indent)?;
+
+    String::from_utf8(buf.into_inner().unwrap()).map_err(Error::file_error)
 }
 
 #[cfg(debug_assertions)]
@@ -257,10 +314,24 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
             |_, (file_path, files, indent): (String, Vec<String>, Option<u8>)| {
                 let indent = indent.unwrap_or(2);
 
-                open_file_read(&file_path)
-                    .and_then(|file| set_files_in_project(file, &files))
-                    .and_then(|project| write_project_to_file(&file_path, &project, indent))
-                    .to_lua_error()?;
+                let mut original = open_file_read(&file_path)?;
+
+                let mut original_content = {
+                    let mut buf = String::new();
+                    original.read_to_string(&mut buf)?;
+                    Cursor::new(buf)
+                };
+
+                let project = set_files_in_project(&mut original_content, &files)?;
+                let output = Cursor::new(write_project_to_string(&project, indent)?);
+
+                drop(original);
+
+                original_content.rewind()?;
+                let fixed = fix_start_and_end(output, original_content)?;
+
+                let mut output_file = open_file_write(&file_path)?;
+                output_file.write_all(fixed.as_bytes())?;
 
                 Ok(())
             },

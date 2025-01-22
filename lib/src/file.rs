@@ -1,3 +1,5 @@
+#![allow(unstable_name_collisions)]
+
 use crate::error::Error;
 use fs2::FileExt;
 use std::{

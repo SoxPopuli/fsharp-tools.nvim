@@ -17,6 +17,15 @@ impl Display for Error {
     }
 }
 
+impl Error {
+    pub fn file_error<E>(err: E) -> Self
+    where
+        E: std::error::Error,
+    {
+        Self::FileError(err.to_string())
+    }
+}
+
 impl std::error::Error for Error {}
 
 impl From<Error> for mlua::Error {

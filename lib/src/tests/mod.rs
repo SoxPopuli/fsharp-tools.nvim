@@ -1,9 +1,10 @@
+use crate::{fix_start_and_end, write_project};
+use pretty_assertions::assert_eq;
 use std::{
     error::Error,
-    io::Cursor,
+    io::{BufWriter, Cursor},
     path::{Path, PathBuf},
 };
-
 use xmltree::Element;
 
 type AnyResult<T> = Result<T, Box<dyn Error>>;
@@ -92,8 +93,10 @@ fn xml_parse() -> AnyResult<()> {
 fn set_files() -> AnyResult<()> {
     let original = Cursor::new(include_str!("files/projects/set_files_original.fsproj"));
 
+    let expected_file = include_str!("files/projects/set_files_expected.fsproj");
+
     let expected = {
-        let src = include_str!("files/projects/set_files_expected.fsproj");
+        let src = expected_file;
         let cursor = Cursor::new(src);
         Element::parse(cursor)
     }
@@ -105,30 +108,19 @@ fn set_files() -> AnyResult<()> {
 
     assert_eq!(result, expected);
 
+    let result_string = {
+        let mut writer = BufWriter::new(Vec::new());
+        write_project(&mut writer, &result, 2)?;
+
+        String::from_utf8(writer.into_inner()?)?
+    };
+
+    let fixed = fix_start_and_end(Cursor::new(result_string), Cursor::new(expected_file))?;
+
+    assert_eq!(fixed, expected_file);
+
     Ok(())
 }
-
-//#[test]
-//fn diff_test() {
-//    let original =
-//        include_str!("files/projects/diff_original.fsproj");
-
-//    let to_write =
-//        include_str!("files/projects/diff_to_write.fsproj");
-
-//    let expected =
-//        include_str!("files/projects/diff_expected.fsproj");
-
-//    let diff =
-//        crate::choose_from_diff(original, to_write);
-
-//    let result = diff
-//        .map(|x| x.to_string())
-//        .reduce(|acc, x| format!("{acc}\n{x}"))
-//        .unwrap();
-
-//    assert_eq!(result, expected);
-//}
 
 #[test]
 fn get_file_name() {
