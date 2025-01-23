@@ -12,7 +12,9 @@ require('fsharp-tools')
 {
   'SoxPopuli/fsharp-tools.nvim',
   ft = { 'fsharp', 'xml' },
-  build = './build.sh -r',
+  build = 'just deploy'
+  -- OR
+  -- build = './build.sh -r',
   opts = {
     indent = 2, --project file indent per tag
     max_depth = 4, --maximum level of upwards directory searches
