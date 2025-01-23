@@ -9,7 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  test-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
           workspaces: "lib -> target"
       - uses: extractions/setup-just@v2
       - run: just test
-  build-macos:
+  test-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
           workspaces: "lib -> target"
       - uses: extractions/setup-just@v2
       - run: just test
-  build-windows:
+  test-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
