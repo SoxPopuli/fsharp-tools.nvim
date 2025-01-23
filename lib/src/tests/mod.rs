@@ -1,11 +1,10 @@
-use crate::{fix_start_and_end, write_project_to_string};
+use crate::{open_file_read, Project};
 use pretty_assertions::assert_eq;
 use std::{
     error::Error,
     io::Cursor,
     path::{Path, PathBuf},
 };
-use xmltree::Element;
 
 type AnyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -65,10 +64,10 @@ fn xml_parse() -> AnyResult<()> {
         .display()
         .to_string();
 
-    let files = crate::get_files_from_project(crate::open_file_read(&with_version)?)?;
+    let project = Project::open(open_file_read(&with_version)?)?;
 
     assert_eq!(
-        files,
+        project.get_files()?,
         vec![
             "One".to_string(),
             "Two".to_string(),
@@ -78,10 +77,10 @@ fn xml_parse() -> AnyResult<()> {
         ]
     );
 
-    let files = crate::get_files_from_project(crate::open_file_read(&without_version)?)?;
+    let project = Project::open(open_file_read(&without_version)?)?;
 
     assert_eq!(
-        files,
+        project.get_files()?,
         vec![
             "One".to_string(),
             "Two".to_string(),
@@ -100,24 +99,12 @@ fn set_files() -> AnyResult<()> {
 
     let expected_file = include_str!("files/projects/set_files_expected.fsproj");
 
-    let expected = {
-        let src = expected_file;
-        let cursor = Cursor::new(src);
-        Element::parse(cursor)
-    }
-    .unwrap();
-
     let files = ["FileA", "FileB", "FileC"];
 
-    let result = crate::set_files_in_project(original, &files)?;
+    let project = Project::open_with_indent(original, "  ")?;
+    let project = project.with_files(&files)?;
 
-    assert_eq!(result, expected);
-
-    let result_string = write_project_to_string(&result, "  ")?;
-
-    let fixed = fix_start_and_end(Cursor::new(result_string), Cursor::new(expected_file))?;
-
-    core::assert_eq!(fixed, expected_file);
+    assert_eq!(project.content, expected_file);
 
     Ok(())
 }
@@ -133,7 +120,7 @@ fn get_file_name() {
 }
 
 #[test]
-fn ignore_empty_lines() {
+fn ignore_empty_lines() -> AnyResult<()> {
     let input = r#"
         <Project Sdk="Microsoft.NET.Sdk">
           <PropertyGroup>
@@ -155,16 +142,24 @@ fn ignore_empty_lines() {
     "#
     .as_bytes();
 
-    let tree =
-        crate::set_files_in_project(input, &["a", "b", "", " ", "                ", "c"]).unwrap();
+    let project = Project::open_with_indent(input, "  ")?.with_files(&[
+        "a",
+        "b",
+        "",
+        " ",
+        "                ",
+        "c",
+    ])?;
 
     let files = {
         let mut buf = Cursor::new(vec![]);
-        crate::write_project(&mut buf, &tree, "  ").unwrap();
+        project.write(&mut buf)?;
         buf.set_position(0);
 
-        crate::get_files_from_project(buf).unwrap()
+        Project::open_with_indent(&mut buf, "  ")?.get_files()?
     };
 
     assert_eq!(files, vec!["a", "b", "c"]);
+
+    Ok(())
 }

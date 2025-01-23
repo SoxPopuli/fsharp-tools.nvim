@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 #[derive(Debug)]
-pub(crate) enum Error {
+pub enum Error {
     FileError(String),
     LockError(String),
     IOError(std::io::Error),
