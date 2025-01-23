@@ -151,16 +151,21 @@ where
         return Ok("".to_string());
     }
 
+    const LINE_ENDING: &str = if cfg!(unix) { "\n" } else { "\r\n" };
+
     output[0] = original_lines[0].to_string();
 
     let mut joined = output.join("\n");
-    if original.ends_with('\n') {
-        if !joined.ends_with('\n') {
-            joined.push('\n');
+    if original.ends_with(LINE_ENDING) {
+        if !joined.ends_with(LINE_ENDING) {
+            joined.push_str(LINE_ENDING);
         }
     } else {
-        if joined.ends_with('\n') {
-            joined.remove(joined.len() - 1);
+        if joined.ends_with(LINE_ENDING) {
+            joined = joined
+                .strip_suffix(LINE_ENDING)
+                .map(|x| x.to_string())
+                .unwrap_or(joined);
         }
     }
 
