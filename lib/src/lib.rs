@@ -255,11 +255,20 @@ fn write_project_to_string(element: &Element, indent: &str) -> Result<String, Er
 
 #[cfg(debug_assertions)]
 fn write_log<T: std::fmt::Display>(name: &str, input: T) -> Result<(), Error> {
+    let file_dir = if cfg!(unix) {
+        "/tmp/fs-tools.log".to_string()
+    } else {
+        Path::new(&std::env::var("TEMP").unwrap())
+            .join("fs-tools.log")
+            .to_string_lossy()
+            .to_string()
+    };
+
     let mut file = File::options()
         .create(true)
         .write(true)
         .append(true)
-        .open("/tmp/fs-tools.log")
+        .open(file_dir)
         .map_err(Error::IOError)?;
 
     writeln!(file, "{}: {}", name, input).map_err(Error::IOError)?;
