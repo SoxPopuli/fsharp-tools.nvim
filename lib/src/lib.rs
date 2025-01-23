@@ -28,30 +28,23 @@ pub struct Project<'a> {
     indent_string: Option<&'a str>,
 }
 impl<'a> Project<'a> {
-    pub fn open_with_indent(file: impl Read, indent_string: &'a str) -> Result<Self, Error> {
+    fn read_file(file: impl Read) -> Result<String, Error> {
         let mut file = BufReader::new(file);
-        let content = {
-            let mut buf = String::new();
-            file.read_to_string(&mut buf)?;
-            buf
-        };
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)?;
+        Ok(buf)
+    }
 
+    pub fn open_with_indent(file: impl Read, indent_string: &'a str) -> Result<Self, Error> {
         Ok(Self {
-            content,
+            content: Self::read_file(file)?,
             indent_string: Some(indent_string),
         })
     }
 
     pub fn open(file: impl Read) -> Result<Self, Error> {
-        let mut file = BufReader::new(file);
-        let content = {
-            let mut buf = String::new();
-            file.read_to_string(&mut buf)?;
-            buf
-        };
-
         Ok(Self {
-            content,
+            content: Self::read_file(file)?,
             indent_string: None,
         })
     }
@@ -369,8 +362,8 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
                     (0..size).map(|_| ' ').collect()
                 }
 
-                let indent = 
-                    project.derive_indent()
+                let indent = project
+                    .derive_indent()
                     .or(indent.map(build_indent_string))
                     .unwrap_or(build_indent_string(2));
 

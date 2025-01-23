@@ -142,8 +142,14 @@ fn ignore_empty_lines() -> AnyResult<()> {
     "#
     .as_bytes();
 
-    let project =
-        Project::open_with_indent(input, "  ")?.with_files(&["a", "b", "", " ", "                ", "c"])?;
+    let project = Project::open_with_indent(input, "  ")?.with_files(&[
+        "a",
+        "b",
+        "",
+        " ",
+        "                ",
+        "c",
+    ])?;
 
     let files = {
         let mut buf = Cursor::new(vec![]);
