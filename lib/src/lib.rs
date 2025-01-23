@@ -17,7 +17,7 @@ use error::{OptionToLuaError, ResultToLuaError};
 use xmltree::{Element, EmitterConfig, XMLNode};
 
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, BufWriter, Cursor, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 
 fn open_file_read(file_path: &str) -> Result<SharedFileLock, Error> {
@@ -127,12 +127,6 @@ where
     Output: Read + Seek,
     Original: Read + Seek,
 {
-    fn seek_to_start(mut file: impl Read + Seek) -> Result<(), Error> {
-        file.seek(SeekFrom::Start(0))
-            .map_err(|e| Error::FileError(e.to_string()))
-            .map(|_| ())
-    }
-
     fn read_lines(file: impl Read + Seek) -> Result<Vec<String>, Error> {
         BufReader::new(file)
             .lines()
@@ -140,8 +134,8 @@ where
             .collect::<Result<_, _>>()
     }
 
-    seek_to_start(&mut output_file)?;
-    seek_to_start(&mut original_file)?;
+    output_file.rewind()?;
+    original_file.rewind()?;
 
     let original = {
         let mut buf = String::new();
@@ -221,14 +215,13 @@ fn set_files_in_project<T: AsRef<str>>(
     Ok(root)
 }
 
-fn write_project(buf: &mut impl Write, element: &Element, indent: u8) -> Result<(), Error> {
+fn write_project(buf: &mut impl Write, element: &Element, indent: &str) -> Result<(), Error> {
     let data_to_write = {
         let mut buffer = BufWriter::new(Vec::<u8>::new());
 
-        let indent_string: String = (0..indent).map(|_| ' ').collect();
         let config = EmitterConfig::new()
             .perform_indent(true)
-            .indent_string(indent_string);
+            .indent_string(indent.to_string());
 
         element
             .write_with_config(&mut buffer, config)
@@ -252,7 +245,7 @@ fn write_project(buf: &mut impl Write, element: &Element, indent: u8) -> Result<
     Ok(())
 }
 
-fn write_project_to_string(element: &Element, indent: u8) -> Result<String, Error> {
+fn write_project_to_string(element: &Element, indent: &str) -> Result<String, Error> {
     // let mut file = open_file_write(file_path)?;
     let mut buf = BufWriter::new(Vec::new());
     write_project(&mut buf, element, indent)?;
@@ -281,6 +274,26 @@ fn get_file_name(file_path: &str) -> Option<String> {
     path.file_stem()
         .and_then(|x| x.to_str())
         .map(|x| x.to_owned())
+}
+
+/// Returns indent string
+fn derive_file_indent_level(file: impl Read) -> Option<String> {
+    let reader = BufReader::new(file);
+
+    fn get_prefix(line: &str, prefix: char) -> String {
+        line.chars().take_while(|c| c == &prefix).collect()
+    }
+
+    reader.lines().flatten().find_map(|line| {
+        let first_char = line.chars().next();
+        if first_char == Some(' ') {
+            Some(get_prefix(&line, ' '))
+        } else if first_char == Some('\t') {
+            Some(get_prefix(&line, '\t'))
+        } else {
+            None
+        }
+    })
 }
 
 use mlua::prelude::*;
@@ -312,8 +325,6 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
         "write_files_to_project",
         lua.create_function(
             |_, (file_path, files, indent): (String, Vec<String>, Option<u8>)| {
-                let indent = indent.unwrap_or(2);
-
                 let mut original = open_file_read(&file_path)?;
 
                 let mut original_content = {
@@ -322,12 +333,21 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
                     Cursor::new(buf)
                 };
 
+                fn build_indent_string(size: u8) -> String {
+                    (0..size).map(|_| ' ').collect()
+                }
+
+                let indent = derive_file_indent_level(&mut original_content)
+                    .or(indent.map(build_indent_string))
+                    .unwrap_or(build_indent_string(2));
+                original_content.rewind()?;
+
                 let project = set_files_in_project(&mut original_content, &files)?;
-                let output = Cursor::new(write_project_to_string(&project, indent)?);
+                original_content.rewind()?;
+                let output = Cursor::new(write_project_to_string(&project, &indent)?);
 
                 drop(original);
 
-                original_content.rewind()?;
                 let fixed = fix_start_and_end(output, original_content)?;
 
                 let mut output_file = open_file_write(&file_path)?;

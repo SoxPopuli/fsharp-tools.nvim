@@ -33,6 +33,11 @@ impl From<Error> for mlua::Error {
         mlua::Error::external(value)
     }
 }
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::IOError(value)
+    }
+}
 
 pub(crate) trait ResultToLuaError {
     type Item;

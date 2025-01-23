@@ -1,4 +1,4 @@
-use crate::{fix_start_and_end, write_project};
+use crate::{fix_start_and_end, write_project, write_project_to_string};
 use pretty_assertions::assert_eq;
 use std::{
     error::Error,
@@ -108,12 +108,7 @@ fn set_files() -> AnyResult<()> {
 
     assert_eq!(result, expected);
 
-    let result_string = {
-        let mut writer = BufWriter::new(Vec::new());
-        write_project(&mut writer, &result, 2)?;
-
-        String::from_utf8(writer.into_inner()?)?
-    };
+    let result_string = write_project_to_string(&result, "  ")?;
 
     let fixed = fix_start_and_end(Cursor::new(result_string), Cursor::new(expected_file))?;
 
@@ -160,7 +155,7 @@ fn ignore_empty_lines() {
 
     let files = {
         let mut buf = Cursor::new(vec![]);
-        crate::write_project(&mut buf, &tree, 2).unwrap();
+        crate::write_project(&mut buf, &tree, "  ").unwrap();
         buf.set_position(0);
 
         crate::get_files_from_project(buf).unwrap()
