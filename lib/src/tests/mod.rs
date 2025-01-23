@@ -117,7 +117,7 @@ fn set_files() -> AnyResult<()> {
 
     let fixed = fix_start_and_end(Cursor::new(result_string), Cursor::new(expected_file))?;
 
-    assert_eq!(fixed, expected_file);
+    core::assert_eq!(fixed, expected_file);
 
     Ok(())
 }
