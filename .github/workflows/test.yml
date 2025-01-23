@@ -14,9 +14,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup toolchain install stable --profile minimal
-      - uses: Swatinem/rust-cache@v2
+      - name: "Cache cargo"
+        id: cache-cargo
+        uses: "actions/cache@v4"
         with:
-          workspaces: "lib -> target"
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            lib/target/
+          save-always: true
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
       - uses: extractions/setup-just@v2
       - run: just test
   test-macos:
@@ -24,18 +34,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup toolchain install stable --profile minimal
-      - uses: Swatinem/rust-cache@v2
+      - name: "Cache cargo"
+        id: cache-cargo
+        uses: "actions/cache@v4"
         with:
-          workspaces: "lib -> target"
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            lib/target/
+          save-always: true
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
       - uses: extractions/setup-just@v2
       - run: just test
   test-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup toolchain install stable --profile minimal
-      - uses: Swatinem/rust-cache@v2
+      - name: "Cache cargo"
+        id: cache-cargo
+        uses: "actions/cache@v4"
         with:
-          workspaces: "lib -> target"
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            lib/target/
+          save-always: true
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
       - uses: extractions/setup-just@v2
       - run: just test
