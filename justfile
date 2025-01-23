@@ -22,16 +22,16 @@ output_name := 'fsharp_tools_rs.so'
 output := output_dir / output_name
 
 [linux]
-_deploy dir: build
-    cp {{dir}}/libfsharp_tools_rs.so {{output}}
+_deploy dir:
+    cp {{dir / 'libfsharp_tools_rs.so'}} {{output}}
 
 [macos]
-_deploy dir: build
-    cp {{dir}}/libfsharp_tools_rs.dylib {{output}}
+_deploy dir:
+    cp {{dir / 'libfsharp_tools_rs.dylib'}} {{output}}
 
 [windows]
-_deploy dir: build
-    copy {{dir}}/fsharp_tools_rs.dll {{output}}
+_deploy dir:
+    copy {{dir / 'fsharp_tools_rs.dll'}} {{output}}
 
 deploy-debug: test build (_deploy debug_dir)
 
