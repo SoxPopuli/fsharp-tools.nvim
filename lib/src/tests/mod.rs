@@ -21,6 +21,8 @@ fn find_project() {
     let proj = crate::find_fsproj(files_dir.join("test_file.fs").to_str().unwrap(), 1);
     let expected = files_dir
         .join("project.fsproj")
+        .canonicalize()
+        .unwrap()
         .to_str()
         .unwrap()
         .to_owned();
@@ -29,13 +31,14 @@ fn find_project() {
 }
 
 #[test]
-fn find_project_nested() {
+fn find_project_nested() -> AnyResult<()> {
     let files_dir = get_files_dir();
 
     let test_file = files_dir.join("directory").join("inside_directory.fs");
 
     let expected = files_dir
         .join("project.fsproj")
+        .canonicalize()?
         .to_str()
         .unwrap()
         .to_owned();
@@ -45,6 +48,8 @@ fn find_project_nested() {
 
     let proj = crate::find_fsproj(test_file.to_str().unwrap(), 2);
     assert_eq!(proj, Some(expected));
+
+    Ok(())
 }
 
 #[test]
