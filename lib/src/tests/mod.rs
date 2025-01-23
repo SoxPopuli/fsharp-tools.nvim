@@ -1,8 +1,8 @@
-use crate::{fix_start_and_end, write_project, write_project_to_string};
+use crate::{fix_start_and_end, write_project_to_string};
 use pretty_assertions::assert_eq;
 use std::{
     error::Error,
-    io::{BufWriter, Cursor},
+    io::Cursor,
     path::{Path, PathBuf},
 };
 use xmltree::Element;
