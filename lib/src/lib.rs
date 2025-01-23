@@ -20,6 +20,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Cursor, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 
+const LINE_ENDING: &str = if cfg!(unix) { "\n" } else { "\r\n" };
+
+
 fn open_file_read(file_path: &str) -> Result<SharedFileLock, Error> {
     let file = File::open(file_path)
         .map_err(|_| Error::FileError(format!("Failed to open file: {file_path}")))?;
@@ -151,11 +154,9 @@ where
         return Ok("".to_string());
     }
 
-    const LINE_ENDING: &str = if cfg!(unix) { "\n" } else { "\r\n" };
-
     output[0] = original_lines[0].to_string();
 
-    let mut joined = output.join("\n");
+    let mut joined = output.join(LINE_ENDING);
     if original.ends_with(LINE_ENDING) {
         if !joined.ends_with(LINE_ENDING) {
             joined.push_str(LINE_ENDING);
@@ -226,6 +227,7 @@ fn write_project(buf: &mut impl Write, element: &Element, indent: &str) -> Resul
 
         let config = EmitterConfig::new()
             .perform_indent(true)
+            .line_separator(LINE_ENDING)
             .indent_string(indent.to_string());
 
         element
