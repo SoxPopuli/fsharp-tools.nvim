@@ -11,6 +11,10 @@ build-release:
     cargo build --release
 
 [working-directory: 'lib']
+test-release:
+    cargo test --release
+
+[working-directory: 'lib']
 test:
     cargo test
 
@@ -35,4 +39,4 @@ _deploy dir:
 
 deploy-debug: test build (_deploy debug_dir)
 
-deploy: test build-release (_deploy release_dir)
+deploy: test-release build-release (_deploy release_dir)
