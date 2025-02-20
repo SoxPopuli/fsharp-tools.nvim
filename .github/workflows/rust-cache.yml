@@ -16,6 +16,7 @@ jobs:
   cache:
     runs-on: ${{ inputs.runner }}
     steps:
+    - uses: actions/checkout@v4
     - name: "Cache cargo"
       id: cache-cargo
       uses: "actions/cache@v4"
