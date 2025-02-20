@@ -1,0 +1,31 @@
+name: rust-cache
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+      key:
+        required: true
+        type: string
+      restore-keys:
+        required: false
+        type: string
+
+jobs:
+  cache:
+    runs-on: ${{ inputs.runner }}
+    steps:
+    - name: "Cache cargo"
+      id: cache-cargo
+      uses: "actions/cache@v4"
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          lib/target/
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}
+
