@@ -11,9 +11,7 @@ env:
 jobs:
   test-linux:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: rustup toolchain install stable --profile minimal
+    uses:
       - name: "Cache cargo"
         id: cache-cargo
         uses: "./.github/workflows/rust-cache.yml"
@@ -21,13 +19,14 @@ jobs:
           runner: ubuntu-latest
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal
       - uses: extractions/setup-just@v2
       - run: just test
   test-macos:
     runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: rustup toolchain install stable --profile minimal
+    uses:
       - name: "Cache cargo"
         id: cache-cargo
         uses: "./.github/workflows/rust-cache.yml"
@@ -35,12 +34,14 @@ jobs:
           runner: macos-latest
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal
       - uses: extractions/setup-just@v2
       - run: just test
   test-windows:
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+    uses:
       - name: "Cache cargo"
         id: cache-cargo
         uses: "./.github/workflows/rust-cache.yml"
@@ -48,5 +49,7 @@ jobs:
           runner: windows-latest
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+    steps:
+      - uses: actions/checkout@v4
       - uses: extractions/setup-just@v2
       - run: just test
