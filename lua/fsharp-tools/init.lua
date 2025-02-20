@@ -7,6 +7,7 @@ local util = require('fsharp-tools.utils')
 ---@field get_files_from_project fun(file_path: string): string[]
 ---@field write_files_to_project fun(file_path: string, files: string[], indent: integer?)
 ---@field get_file_name fun(file_name: string): string
+---@field get_cumulative_path_parts fun(path: string): string
 local core = require('fsharp_tools_rs')
 
 ---@class BufferData
@@ -36,23 +37,38 @@ local function split_path(path)
   return vim.split(path, sep, { trimempty = false })
 end
 
+---@param s string
+---@return string
+local function last_char(s)
+  if s:len() == 0 then
+    return ''
+  else
+    local last_index = s:len()
+    return s:sub(last_index, last_index)
+  end
+end
+
 ---@param root string
 ---@param part string
 ---@return string
 local function join_path(root, part)
-  return root .. sep .. part
+  if last_char(root) == part then
+    return root .. part
+  else
+    return root .. sep .. part
+  end
 end
 
 ---@param parts string[]
 ---@return string
 local function get_root_from_parts(parts)
-    local path = parts[1]
-    for i = 2, #parts - 1, 1 do
-        path = join_path(path, parts[i])
-    end
-
-    return path
+  local path = parts[1]
+  for i = 2, #parts - 1, 1 do
+    path = join_path(path, parts[i])
   end
+
+  return path
+end
 
 ---@param num number
 ---@return integer
@@ -149,7 +165,7 @@ local function set_keybinds(bufnr, data)
     local line = vim.api.nvim_get_current_line()
     local path_root = data.project_root
     local path = join_path(path_root, line)
-    path = path .. ".fs" -- re-add extension
+    path = path .. '.fs'           -- re-add extension
 
     path = path:gsub('[\\/]', sep) -- escape backslashes
 
@@ -229,16 +245,65 @@ function M.edit_file_order(is_floating)
   local project_name = core.get_file_name(project)
 
   local buffer_data = {
-      project_name = project_name,
-      project_path = project,
-      project_root = get_root_from_parts( split_path(project) ),
-      float = is_floating,
+    project_name = project_name,
+    project_path = project,
+    project_root = get_root_from_parts(split_path(project)),
+    float = is_floating,
   }
 
   local bufnr = create_fake_buffer(project_name, buffer_data)
   local files = core.get_files_from_project(project)
 
   setup_buffer(bufnr, files, buffer_data)
+end
+
+function M.insert_module_name()
+  ---@type string
+  local file_path = vim.fn.expand('%:r.')
+
+  ---@class Parts
+  ---@field count integer
+  ---@field item string
+  local parts = (function()
+    local file_parts = util.string_split(file_path, sep)
+    local parts = {}
+    for i = 1, #file_parts do
+      local ends = util.take_back(file_parts, i)
+      parts[i] = {
+        count = i,
+        item = util.join(ends, '.'),
+      }
+    end
+    return parts
+  end)()
+
+  vim.ui.select(
+    parts,
+    {
+      ---@param line Parts
+      format_item = function(line)
+        return line.count .. '. ' .. line.item
+      end,
+    },
+    ---@param choice Parts|nil
+    function(choice)
+      if choice == nil then
+        return
+      end
+      ---@type string
+      local current_line = vim.api.nvim_get_current_line()
+      local is_line_empty = current_line:len() == 0 or current_line:gsub('\\w+', ''):len() == 0
+
+      local text_to_insert = 'module ' .. choice.item
+
+      local line_nr = vim.fn.line('.')
+      if is_line_empty then
+        vim.api.nvim_set_current_line(text_to_insert)
+      else
+        vim.api.nvim_buf_set_lines(0, line_nr, line_nr, false, { text_to_insert })
+      end
+    end
+  )
 end
 
 ---@param opts Settings

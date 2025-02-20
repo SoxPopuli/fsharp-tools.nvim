@@ -35,7 +35,10 @@ impl<'a> Project<'a> {
         Ok(buf)
     }
 
-    pub fn open_with_indent(file: impl Read, indent_string: &'a str) -> Result<Self, Error> {
+    pub fn open_with_indent(
+        file: impl Read,
+        indent_string: &'a str,
+    ) -> Result<Self, Error> {
         Ok(Self {
             content: Self::read_file(file)?,
             indent_string: Some(indent_string),
@@ -62,8 +65,9 @@ impl<'a> Project<'a> {
 
     fn parse_root(&self) -> Result<Element, Error> {
         let content = Cursor::new(&self.content);
-        Element::parse(content)
-            .map_err(|e| Error::FileError(format!("Failed to parse project: {}", e.to_string())))
+        Element::parse(content).map_err(|e| {
+            Error::FileError(format!("Failed to parse project: {e}"))
+        })
     }
 
     pub fn fix_start_and_end(&self, original: &Self) -> Result<Self, Error> {
@@ -90,13 +94,11 @@ impl<'a> Project<'a> {
             if !joined.ends_with(LINE_ENDING) {
                 joined.push_str(LINE_ENDING);
             }
-        } else {
-            if joined.ends_with(LINE_ENDING) {
-                joined = joined
-                    .strip_suffix(LINE_ENDING)
-                    .map(|x| x.to_string())
-                    .unwrap_or(joined);
-            }
+        } else if joined.ends_with(LINE_ENDING) {
+            joined = joined
+                .strip_suffix(LINE_ENDING)
+                .map(|x| x.to_string())
+                .unwrap_or(joined);
         }
 
         Ok(Project {
@@ -106,7 +108,9 @@ impl<'a> Project<'a> {
     }
 
     pub fn get_files(&self) -> Result<Vec<String>, Error> {
-        fn get_item_groups(element: &Element) -> impl Iterator<Item = &Element> {
+        fn get_item_groups(
+            element: &Element,
+        ) -> impl Iterator<Item = &Element> {
             element.children.iter().filter_map(|node| {
                 let elem = node.as_element()?;
 
@@ -128,12 +132,13 @@ impl<'a> Project<'a> {
                 .filter(|elem| elem.name == "Compile")
         });
 
-        let mut paths: Vec<_> = files.map(|e| e.attributes["Include"].clone()).collect();
+        let mut paths: Vec<_> =
+            files.map(|e| e.attributes["Include"].clone()).collect();
 
         for p in paths.iter_mut() {
-            let (name, _) = p
-                .split_once('.')
-                .ok_or(Error::FileError(format!("missing extension for {}", p)))?;
+            let (name, _) = p.split_once('.').ok_or(Error::FileError(
+                format!("missing extension for {}", p),
+            ))?;
 
             *p = name.to_owned();
         }
@@ -141,7 +146,10 @@ impl<'a> Project<'a> {
         Ok(paths)
     }
 
-    fn from_element(element: &Element, indent: Option<&'a str>) -> Result<Self, Error> {
+    fn from_element(
+        element: &Element,
+        indent: Option<&'a str>,
+    ) -> Result<Self, Error> {
         let data_to_write = {
             let mut buffer = BufWriter::new(Vec::<u8>::new());
 
@@ -157,7 +165,8 @@ impl<'a> Project<'a> {
             let buffer = buffer
                 .into_inner()
                 .map_err(|e| Error::FileError(e.to_string()))?;
-            String::from_utf8(buffer).map_err(|e| Error::FileError(e.to_string()))?
+            String::from_utf8(buffer)
+                .map_err(|e| Error::FileError(e.to_string()))?
         };
 
         cfg_if! {
@@ -172,10 +181,16 @@ impl<'a> Project<'a> {
         })
     }
 
-    pub fn with_files<T: AsRef<str>>(&self, file_names: &[T]) -> Result<Self, Error> {
+    pub fn with_files<T: AsRef<str>>(
+        &self,
+        file_names: &[T],
+    ) -> Result<Self, Error> {
         let mut root = self.parse_root()?;
 
-        fn replace_files_in_group<T: AsRef<str>>(group: &mut Element, file_names: &[T]) {
+        fn replace_files_in_group<T: AsRef<str>>(
+            group: &mut Element,
+            file_names: &[T],
+        ) {
             group.children.retain(|n| {
                 if let Some(elem) = n.as_element() {
                     return elem.name != "Compile";
@@ -186,7 +201,7 @@ impl<'a> Project<'a> {
             let file_names = file_names
                 .iter()
                 .rev()
-                .filter(|s| s.as_ref().trim().len() > 0);
+                .filter(|s| !s.as_ref().trim().is_empty());
 
             for item in file_names {
                 let mut element = Element::new("Compile");
@@ -202,11 +217,9 @@ impl<'a> Project<'a> {
         for child in root.children.iter_mut() {
             if let XMLNode::Element(elem) = child {
                 if elem.name == "ItemGroup"
-                    && elem
-                        .children
-                        .iter()
-                        .find(|n| n.as_element().map(|e| e.name == "Compile").is_some())
-                        .is_some()
+                    && elem.children.iter().any(|n| {
+                        n.as_element().map(|e| e.name == "Compile").is_some()
+                    })
                 {
                     replace_files_in_group(elem, file_names);
                     break;
@@ -227,9 +240,9 @@ impl<'a> Project<'a> {
         self.content.lines().find_map(|line| {
             let first_char = line.chars().next();
             if first_char == Some(' ') {
-                Some(get_prefix(&line, ' '))
+                Some(get_prefix(line, ' '))
             } else if first_char == Some('\t') {
-                Some(get_prefix(&line, '\t'))
+                Some(get_prefix(line, '\t'))
             } else {
                 None
             }
@@ -238,8 +251,9 @@ impl<'a> Project<'a> {
 }
 
 fn open_file_read(file_path: &str) -> Result<SharedFileLock, Error> {
-    let file = File::open(file_path)
-        .map_err(|_| Error::FileError(format!("Failed to open file: {file_path}")))?;
+    let file = File::open(file_path).map_err(|_| {
+        Error::FileError(format!("Failed to open file: {file_path}"))
+    })?;
 
     SharedFileLock::new(file)
 }
@@ -258,9 +272,9 @@ fn open_file_write(file_path: &str) -> Result<ExclusiveFileLock, Error> {
 /// finds a fsproj file or hits max depth
 fn find_fsproj(file_path: &str, max_depth: i32) -> Option<String> {
     let path = {
-        let tmp = Path::new(file_path)
-            .canonicalize()
-            .expect(&format!("failed to canonicalize path {file_path}"));
+        let tmp = Path::new(file_path).canonicalize().unwrap_or_else(|_| {
+            panic!("failed to canonicalize path {file_path}")
+        });
         if tmp.is_file() {
             tmp.parent()?.to_path_buf()
         } else {
@@ -281,18 +295,25 @@ fn find_fsproj(file_path: &str, max_depth: i32) -> Option<String> {
         })
     }
 
-    fn find_until(path: impl AsRef<Path>, depth: i32, max_depth: i32) -> Option<PathBuf> {
+    fn find_until(
+        path: impl AsRef<Path>,
+        depth: i32,
+        max_depth: i32,
+    ) -> Option<PathBuf> {
         if depth >= max_depth {
             None
         } else {
             match find_from_path(path.as_ref()) {
                 Some(path) => Some(path),
-                None => find_until(path.as_ref().parent()?, depth + 1, max_depth),
+                None => {
+                    find_until(path.as_ref().parent()?, depth + 1, max_depth)
+                }
             }
         }
     }
 
-    find_until(path, 0, max_depth).and_then(|path| Some(path.to_str()?.to_owned()))
+    find_until(path, 0, max_depth)
+        .and_then(|path| Some(path.to_str()?.to_owned()))
 }
 
 #[cfg(debug_assertions)]
@@ -308,7 +329,6 @@ fn write_log<T: std::fmt::Display>(name: &str, input: T) -> Result<(), Error> {
 
     let mut file = File::options()
         .create(true)
-        .write(true)
         .append(true)
         .open(file_dir)
         .map_err(Error::IOError)?;
@@ -337,7 +357,8 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
         "find_fsproj",
         lua.create_function(|_, (file_path, max_depth): (String, i32)| {
             let err_msg = format!("fsproj not found for file: {}", file_path);
-            let result = find_fsproj(&file_path, max_depth).to_lua_error(err_msg)?;
+            let result =
+                find_fsproj(&file_path, max_depth).to_lua_error(err_msg)?;
             Ok(result)
         })?,
     )?;
@@ -381,8 +402,9 @@ fn module(lua: &Lua) -> LuaResult<LuaTable> {
     table.set(
         "get_file_name",
         lua.create_function(|_, file_path: String| {
-            get_file_name(&file_path)
-                .to_lua_error(format!("Could not get file name for: {file_path}"))
+            get_file_name(&file_path).to_lua_error(format!(
+                "Could not get file name for: {file_path}"
+            ))
         })?,
     )?;
 
