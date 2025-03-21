@@ -10,7 +10,7 @@ require('fsharp-tools')
 
 ### Example Lazy Config
 
-> [!example] Example Lazy.nvim Config
+> [!NOTE] Example Lazy.nvim Config
 > ```lua
 > return {
 >   'SoxPopuli/fsharp-tools.nvim',
